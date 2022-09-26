@@ -2,21 +2,17 @@
 /**
 *************************************
 Info:		STM32 I2C with DS3231 HAL
-Author:		Amaan Vally
+Author:		HBBCHE002 and PRNJAS002
 *************************************
 In this practical you will learn to use I2C on the STM32 using the HAL. Here, we will
 be interfacing with a DS3231 RTC. We also create functions to convert the data between Binary
 Coded Decimal (BCD) and decimal.
-
 Code is also provided to send data from the STM32 to other devices using UART protocol
 by using HAL. You will need Putty or a Python script to read from the serial port on your PC.
-
 UART Connections are as follows: red->5V black->GND white(TX)->PA2 green(RX;unused)->PA3.
 Open device manager and go to Ports. Plug in the USB connector with the STM powered on. Check the port number (COMx).
 Open up Putty and create a new Serial session on that COMx with baud rate of 9600.
-
 https://www.youtube.com/watch?v=EEsI9MxndbU&list=PLfIJKC1ud8ghc4eFhI84z_3p3Ap2MCMV-&index=4
-
 RTC Connections: (+)->5V (-)->GND D->PB7 (I2C1_SDA) C->PB6 (I2C1_SCL)
   ******************************************************************************
   */
@@ -48,13 +44,18 @@ typedef struct {
 //TO DO:
 //TASK 2
 //Give DELAY1 and DELAY2 sensible values
-#define DELAY1 0
-#define DELAY2 0
+#define DELAY1 3500
+#define DELAY2  1000
 
 //TO DO:
 //TASK 4
 //Define the RTC slave address
 #define DS3231_ADDRESS 0x0
+#define DS3231_ADDRESS_write 0b11010000
+#define DS3231_ADDRESS_read 0b11010001
+#define FIRST_REG 0
+#define REG_SIZE 7
+
 
 #define EPOCH_2022 1640988000
 /* USER CODE END PD */
@@ -71,7 +72,10 @@ UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
-char buffer[14];
+char buffer[64];
+char answer[64];
+char dec[64];
+char bin[64];
 uint8_t data [] = "Hello from STM32!\r\n";
 TIME time;
 /* USER CODE END PV */
@@ -137,7 +141,8 @@ int main(void){
   //TO DO
   //TASK 6
   //YOUR CODE HERE
-
+//   setTime(sec, min, h, dow, dom, month, year)
+setTime(0, 0, 0, 0, 19, 9, 22); //sets time to Saturday, January 1, 2022 12:00:00 AM GMT+02:00
 
   /* USER CODE END 2 */
 
@@ -149,21 +154,44 @@ int main(void){
 	//TO DO:
 	//TASK 1
 	//First run this with nothing else in the loop and scope pin PC8 on an oscilloscope
-	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
+
+	pause_sec(1); //pauses program for 1 second
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); //toggles Blue LED on and off
+	//pause_sec(5);
 
 	//TO DO:
 	//TASK 6
 
-	//sprintf(buffer, "%d \r\n", 55555555555555);
+	sprintf(buffer, "%s", (data));
 	//This creates a string "55555555555555" with a pointer called buffer
 
 	//Transmit data via UART
 	//Blocking! fine for small buffers
-	//HAL_UART_Transmit(&huart2, buffer, sizeof(buffer), 1000);
-
+	HAL_UART_Transmit(&huart2, buffer, sizeof(buffer), 1000);//transmits value to UART
 
 
 	//YOUR CODE HERE
+	getTime(); //gets time from RTC;
+	int ans = epochFromTime(time); //works out epoch time and saves it to ans
+	sprintf(answer, "Epoch time = %d \r\n", ans);
+	HAL_UART_Transmit(&huart2, answer, sizeof(answer), 1000); //transmits value to UART
+
+	sprintf(buffer, "%d %d %d %d %d %d %d \r\n", time.seconds, time.minutes, time.hour, time.dayofweek, time.dayofmonth, time.month, time.year);
+	HAL_UART_Transmit(&huart2, buffer, sizeof(buffer), 1000);//transmits value to UART
+
+	int bcd = 81; //set a test value to convert between bcd to dec
+	int decAns = bcdToDec(bcd); //finds decimal ans
+	sprintf(dec, "%d BCD as a decimal = %d \r\n", bcd, decAns);
+	HAL_UART_Transmit(&huart2, dec, sizeof(dec), 1000);//transmits value to UART
+
+	int decs = 51; //set a test value to convert between bcd and dec
+	int binNum = decToBcd(decs); //find bcd ans
+	sprintf(bin, "%d decimal as a BCD = %d \r\n", decs, binNum);
+	HAL_UART_Transmit(&huart2, bin, sizeof(bin), 1000);//transmits value to UART
+
+	uint8_t end [] = "---------------------------";
+	sprintf(bin, "%s \r\n", end);
+	HAL_UART_Transmit(&huart2, bin, sizeof(bin), 1000);//transmits value to UART
 
 
 
@@ -358,6 +386,14 @@ void pause_sec(float x)
 	//Make sure you've defined DELAY1 and DELAY2 in the private define section
 
 	//YOUR CODE HERE
+	//a nested loop using the two delays to approximate a 1 second delay.
+	for(int i=0; i < x; i++){ //loop for number of seconds
+		for(int n=0; n < DELAY1; n++){ //loop for first delay
+			for(int y=0; y < DELAY2; y++){ //loop for second delay
+
+			}
+	}
+}
 }
 
 uint8_t decToBcd(int val)
@@ -367,6 +403,8 @@ uint8_t decToBcd(int val)
 	//TASK 3
 
 	//YOUR CODE HERE
+
+	return ((val/10*16) + (val%10)); //converts decimal value to bcd
 }
 
 int bcdToDec(uint8_t val)
@@ -378,6 +416,8 @@ int bcdToDec(uint8_t val)
 
 	//YOUR CODE HERE
 
+	return ((val/16*10) +(val%16)); //converts bcd to decimal
+
 }
 
 void setTime (uint8_t sec, uint8_t min, uint8_t hour, uint8_t dow, uint8_t dom, uint8_t month, uint8_t year)
@@ -387,13 +427,22 @@ void setTime (uint8_t sec, uint8_t min, uint8_t hour, uint8_t dow, uint8_t dom, 
 	//TASK 4
 
 	uint8_t set_time[7];
+	set_time[0] = decToBcd(sec);
+	set_time[1] = decToBcd(min);
+	set_time[2] = decToBcd(hour);
+	set_time[3] = decToBcd(dow);
+	set_time[4] = decToBcd(dom);
+	set_time[5] = decToBcd(month);
+	set_time[6] = decToBcd(year);
 
 	//YOUR CODE HERE
 
 	//fill in the address of the RTC, the address of the first register to write anmd the size of each register
 	//The function and RTC supports multiwrite. That means we can give the function a buffer and first address
 	//and it will write 1 byte of data, increment the register address, write another byte and so on
-	HAL_I2C_Mem_Write(&hi2c1, DS3231_ADDRESS, FIRST_REG, REG_SIZE, set_time, 7, 1000);
+	//HAL_I2C_Mem_Write(&hi2c1, 11010000, 0, 7, set_time, 7, 1000);
+	HAL_I2C_Mem_Write(&hi2c1, DS3231_ADDRESS_write, FIRST_REG, I2C_MEMADD_SIZE_8BIT, set_time, 7, 1000);
+
 
 }
 
@@ -409,7 +458,16 @@ void getTime (void)
 	//fill in the address of the RTC, the address of the first register to write anmd the size of each register
 	//The function and RTC supports multiread. That means we can give the function a buffer and first address
 	//and it will read 1 byte of data, increment the register address, write another byte and so on
-	HAL_I2C_Mem_Read(&hi2c1, DS3231_ADDRESS, FIRST_REG, REG_SIZE, get_time, 7, 1000);
+	//HAL_I2C_Mem_Read(&hi2c1, 11010001, 0, 7, get_time, 7, 1000);
+	HAL_I2C_Mem_Read(&hi2c1, DS3231_ADDRESS_read, FIRST_REG, I2C_MEMADD_SIZE_8BIT, get_time, 7, 1000);
+
+    time.seconds = bcdToDec(get_time[0]);
+	time.minutes = bcdToDec(get_time[1]);
+	time.hour = bcdToDec(get_time[2]);
+	time.dayofweek = bcdToDec(get_time[3]);
+	time.dayofmonth = bcdToDec(get_time[4]);
+	time.month = bcdToDec(get_time[5]);
+	time.year = bcdToDec(get_time[6]);
 
 
 	//YOUR CODE HERE
@@ -417,28 +475,88 @@ void getTime (void)
 }
 
 int epochFromTime(TIME time){
-    /* Convert time to UNIX epoch time */
-	//TO DO:
-	//TASK 5
-	//You have been given the epoch time for Saturday, January 1, 2022 12:00:00 AM GMT+02:00
-	//It is define above as EPOCH_2022. You can work from that and ignore the effects of leap years/seconds
+	/* Convert time to UNIX epoch time */
+		//TO DO:
+		//TASK 5
+		//You have been given the epoch time for Saturday, January 1, 2022 12:00:00 AM GMT+02:00
+		//It is define above as EPOCH_2022. You can work from that and ignore the effects of leap years/seconds
 
-	//YOUR CODE HERE
+		//YOUR CODE HERE
 
-	switch(months){
-	case 1:
-		day += 31;
-	break;
+		//converting from bcd vals in global time to dec vals local var
+		//*does it get decimal val thats like (18 when it is 12?)
 
-	/*
-	 *COMPLETE THE SWITCH CASE OR INSERT YOUR OWN LOGIC
-	 */
+		int seconds = time.seconds;
+		int minutes = time.minutes;
+		int hour = time.hour;
+		int day = time.dayofweek;
+		int date = time.dayofmonth;
+		int month = time.month;
+		int year = time.year;
 
-	default:
-		day = day;
-	}
+		if (year > 0)
+			{
+				date += (year-22)*365;
+			}
 
-	return EPOCH_2022 + ;
+		switch(month){
+		case 2:
+			date += 31; //Jan
+		break;
+		case 3:
+			date += 28 + 31; //Feb +Jan
+		break;
+		case 4:
+			date += 31+28+31;  //Jan + Feb +March
+		break;
+		case 5:
+			date += 31+28+31+30;  //Jan + Feb +March + April
+		break;
+		case 6:
+			date += 31+ 28+31+30+31;  //Jan + Feb +March + April + May
+		break;
+		case 7:
+			date += 31+28+31+30+31+30;  //Jan + Feb +March + April + May + June
+		break;
+		case 8:
+			date += 31+28+31+30+31+30+31;  //Jan+Feb+March+April+May+June+July
+		break;
+		case 9:
+			date += 31+28+31+30+31+30+31+31;  //Jan+Feb+March+April+May+June+July+Aug
+		break;
+		case 10:
+			date += 31+28+31+30+31+30+31+31+30;  //Jan+Feb+March+April+May+June+July+Aug+Sept
+		break;
+		case 11:
+			date += 31+28+31+30+31+30+31+31+30+31;  //Jan+Feb+March+April+May+June+July+Aug+Sept+Oct
+		break;
+		case 12:
+			date += 31+28+31+30+31+30+31+31+30+31+30;  //Jan+Feb+March+April+May+June+July+Aug+Sept+Oct+Nov
+		break;
+
+		/*
+		 *COMPLETE THE SWITCH CASE OR INSERT YOUR OWN LOGIC
+		 */
+
+		default:
+			date = date;
+		}
+
+		//86 400 seconds in a day
+		//3 600 seconds in an hour
+		//60 seconds in a minute
+
+		seconds += date*86400;
+
+		seconds += hour*3600;
+
+		seconds += minutes*60;
+
+		int epoch = EPOCH_2022 + seconds;
+
+
+		return 	epoch;
+
 }
 
 /* USER CODE END 4 */
@@ -447,6 +565,7 @@ int epochFromTime(TIME time){
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
+
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
@@ -474,3 +593,4 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
