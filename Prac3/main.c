@@ -143,7 +143,7 @@ int main(void)
 	  //TASK 3
 	  //Test your ADCtoCRR function. Display CRR value via UART
 	  crr_val = ADCtoCRR(ans); //converts an ADC value to a PWM duty cycle value (CRR value that needs to be set for a specific duty cycle)
-	  dutyCycle = ((crr_val)/47999)*100; // CRR(Capture/Compare Register) divided by ARR (Auto Reload Register).)
+	  dutyCycle = (crr_val*100)/47999; // CRR(Capture/Compare Register) divided by ARR (Auto Reload Register).)
 	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_4,crr_val); //used to set the CCR register to ccr_val.
 	  //TASK 4
 	  //Complete rest of implementation
