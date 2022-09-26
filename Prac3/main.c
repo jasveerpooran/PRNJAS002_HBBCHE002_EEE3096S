@@ -3,7 +3,7 @@
 *******************************************************
 Info:		STM32 ADCs, GPIO Interrupts and PWM with HAL
 Author:		Amaan Vally
-Student Names: JAsveer Pooran (PRNJAS002), Che Habib (HBBCHE002)
+Student Names: Jasveer Pooran (PRNJAS002), Che Habib (HBBCHE002)
 *******************************************************
 In this practical you will learn to use the ADC on the STM32 using the HAL.
 Here, we will be measuring the voltage on a potentiometer and using its value
