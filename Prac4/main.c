@@ -46,9 +46,6 @@ We also set up an interrupt to switch the waveform between various LUTs.
 TIM_HandleTypeDef htim3;
 DMA_HandleTypeDef hdma_tim2_ch1;
 
-UART_HandleTypeDef huart1;
-DMA_HandleTypeDef hdma_usart1_tx;
-
 /* USER CODE BEGIN PV */
 //Create global variables for debouncing and delay interval
 
@@ -4112,8 +4109,7 @@ int mode = 0; //variable used in interrupt handler to determine which LUT table
 int start = 0;//variable used in interrupt handler to determine start time
 int end;//variable used in interrupt handler to determine end time
 
-// Buffer for UART
-char buffer[14]; //for uart transmission
+
 
 
 /* USER CODE END PV */
@@ -4124,7 +4120,6 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void EXTI0_1_IRQHandler(void);
 /* USER CODE END PFP */
@@ -4165,7 +4160,6 @@ int main(void)
   MX_DMA_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
   //TO DO:
@@ -4206,7 +4200,6 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -4232,12 +4225,6 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
-  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
@@ -4361,41 +4348,6 @@ static void MX_TIM3_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 38400;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
   * Enable DMA controller clock
   */
 static void MX_DMA_Init(void)
@@ -4405,9 +4357,6 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA1_Channel2_3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
   /* DMA1_Channel4_5_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel4_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel4_5_IRQn);
@@ -4463,26 +4412,22 @@ void EXTI0_1_IRQHandler(void)
 	{
 		__HAL_TIM_DISABLE_DMA(&htim2, TIM_DMA_CC1);
 		uint32_t DestAddress = (uint32_t) &(TIM3->CCR1);
-		uint32_t * src = 0;
+		uint32_t * source = 0;
 		mode = (mode +1)%3;
 		switch(mode){
 		case 0:
-			src = (uint32_t *)sin_LUT;
+			source = (uint32_t *)sin_LUT;
 			break;
 		case 1:
-			src = (uint32_t *)saw_LUT;
+			source = (uint32_t *)saw_LUT;
 			break;
 		case 2:
-			src = (uint32_t *)triangle_LUT;
+			source = (uint32_t *)triangle_LUT;
 			break;
 		default:
-			src = (uint32_t *)sin_LUT;
+			source = (uint32_t *)sin_LUT;
 			break;
 		}
-		// Display the mode
-		sprintf(buffer, "Mode: %d\r\n", mode);
-		// Transmit data via UART
-		HAL_UART_Transmit(&huart1, buffer, sizeof(buffer), 1000);
 		HAL_StatusTypeDef stat = HAL_DMA_Abort_IT(&hdma_tim2_ch1);
 		stat = HAL_DMA_Start_IT(&hdma_tim2_ch1, (uint32_t)src, DestAddress, NS);
 		__HAL_TIM_ENABLE_DMA(&htim2, TIM_DMA_CC1);
